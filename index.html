@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OREDA Fashion Management System</title>
+    
+    <!-- External Libraries - Load in correct order -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js" 
+            onerror="console.error('Failed to load Chart.js')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+            onerror="console.error('Failed to load XLSX.js')"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"
+            onerror="console.error('Failed to load Lucide icons')"></script>
+    
+    <!-- Supabase SDK -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"
+            onerror="console.error('Failed to load Supabase SDK')"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="login-container">
+        <div class="login-card">
+            <div class="logo">OREDA</div>
+            <div class="login-subtitle">Fashion Management System</div>
+            
+            <form id="loginForm">
+                <div class="input-group">
+                    <input type="email" id="loginEmail" placeholder="Email" required>
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="loginPassword" placeholder="Password" required>
+                    <span class="password-toggle" onclick="togglePassword()">
+                        <i data-lucide="eye"></i>
+                    </span>
+                </div>
+                
+                <div class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">Ingat saya</label>
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <span id="loginText">Masuk</span>
+                    <span id="loginLoader" class="loading hidden"></span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="confirm-modal">
+        <div class="confirm-content">
+            <div class="confirm-icon">
+                <i data-lucide="alert-triangle"></i>
+            </div>
+            <div class="confirm-title">Konfirmasi Pembatalan</div>
+            <div class="confirm-message">Yakin ingin membatalkan penjualan ini? Stok akan dikembalikan.</div>
+            <div class="confirm-actions">
+                <button class="confirm-btn confirm-btn-cancel" onclick="closeConfirmModal()">Batal</button>
+                <button class="confirm-btn confirm-btn-danger" id="confirmAction">Ya, Batalkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="appContainer" class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button class="menu-toggle" onclick="toggleSidebar()">
+                    <i data-lucide="menu"></i>
+                </button>
+                <div class="header-logo">OREDA</div>
+            </div>
+            <div class="user-info">
+                <div class="theme-toggle">
+                    <button class="theme-toggle-btn active" onclick="setTheme('dark')" data-theme="dark">
+                        <i data-lucide="moon"></i>
+                    </button>
+                    <button class="theme-toggle-btn" onclick="setTheme('light')" data-theme="light">
+                        <i data-lucide="sun"></i>
+                    </button>
+                </div>
+                <button class="logout-btn" onclick="logout()" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Sidebar -->
+            <nav class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="team-info">
+                        <div class="logo-text">OREDA</div>
+                        <div class="subtitle">Fashion Management</div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-menu">
+                    <a href="#" class="menu-item active" onclick="showPage('dashboard', event)">
+                        <span class="menu-icon"><i data-lucide="bar-chart-3"></i></span>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="menu-item" onclick="showPage('products', event)">
+                        <span class="menu-icon"><i data-lucide="package"></i></span>
+                        <span>Produk</span>
+                    </a>
+                    <a href="#" class="menu-item" onclick="showPage('sold-products', event)">
+                        <span class="menu-icon"><i data-lucide="shopping-cart"></i></span>
+                        <span>Produk Terjual</span>
+                    </a>
+                    <a href="#" class="menu-item" onclick="showPage('best-seller', event)">
+                        <span class="menu-icon"><i data-lucide="trophy"></i></span>
+                        <span>Best Seller</span>
+                    </a>
+                    <a href="#" class="menu-item" onclick="showPage('cancelled-orders', event)">
+                        <span class="menu-icon"><i data-lucide="x-circle"></i></span>
+                        <span>Order Dibatalkan</span>
+                        <span class="menu-badge" id="cancelledBadge">0</span>
+                    </a>
+                    <a href="#" class="menu-item" onclick="showPage('coupons', event)">
+                        <span class="menu-icon"><i data-lucide="ticket"></i></span>
+                        <span>Kelola Kupon</span>
+                    </a>
+                    <a href="#" class="menu-item" onclick="showPage('reports', event)">
+                        <span class="menu-icon"><i data-lucide="trending-up"></i></span>
+                        <span>Laporan</span>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Content Area -->
+            <main class="content-area">
+                <!-- Dashboard Page -->
+                <div id="dashboardPage" class="page">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">
+                                <i data-lucide="bar-chart-3"></i>
+                                Dashboard
+                            </h1>
+                        </div>
+                        <div class="page-actions">
+                            <div class="filter-group">
+                                <label>Filter Periode</label>
+                                <select id="periodFilter" onchange="updateDashboard()">
+                                    <option value="today">Hari Ini</option>
+                                    <option value="7">7 Hari Terakhir</option>
+                                    <option value="30">30 Hari Terakhir</option>
+                                    <option value="90">3 Bulan Terakhir</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="dashboardLoading" class="text-center" style="padding: 50px; display: none;">
+                        <div class="loading"></div>
+                        <p>Memuat data...</p>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Penjualan</h3>
+                            <div class="stat-value sales" id="totalSales">Rp 0</div>
+                            <div class="stat-change positive" id="salesChange">+0%</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Keuntungan</h3>
+                            <div class="stat-value profit" id="totalProfit">Rp 0</div>
+                            <div class="stat-change positive" id="profitChange">+0%</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Barang Terjual</h3>
+                            <div class="stat-value items" id="itemsSold">0</div>
+                            <div class="stat-change positive" id="itemsChange">+0</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Order Dibatalkan</h3>
+                            <div class="stat-value danger" id="cancelledOrders">0</div>
+                            <div class="stat-change negative" id="cancelledChange">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-title">Penjualan, Keuntungan & Barang Terjual</div>
+                            <div class="chart-container">
+                                <canvas id="salesChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-title">Order Status</div>
+                            <div class="chart-container">
+                                <canvas id="orderChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Widgets -->
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-title">
+                                <i data-lucide="trophy"></i>
+                                Top 5 Best Seller
+                            </div>
+                            <div id="bestSellerWidget"></div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-title">
+                                <i data-lucide="clock"></i>
+                                Penjualan Terakhir
+                            </div>
+                            <div id="recentSalesWidget"></div>
+                        </div>
+                    </div>
+
+                    <div id="stockAlert"></div>
+                </div>
+
+                <!-- Other pages will be populated dynamically via JavaScript -->
+                <div id="productsPage" class="page hidden"></div>
+                <div id="sold-productsPage" class="page hidden"></div>
+                <div id="best-sellerPage" class="page hidden"></div>
+                <div id="cancelled-ordersPage" class="page hidden"></div>
+                <div id="couponsPage" class="page hidden"></div>
+                <div id="reportsPage" class="page hidden"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals Container - Will be populated dynamically -->
+    <div id="modalContainer"></div>
+
+    <!-- JavaScript Files - FIXED ORDER: Core utilities first -->
+    <script>
+        // Initialize loading state
+        console.log('🚀 Starting OREDA Fashion Management System...');
+        
+        // Add resource error handling
+        window.addEventListener('error', function(e) {
+            if (e.target !== window && e.target.src) {
+                console.error('❌ Failed to load resource:', e.target.src);
+            }
+        }, true);
+    </script>
+    
+    <!-- CRITICAL: Load utilities FIRST - contains getElement function -->
+    <script src="js/config.js" onerror="console.error('Failed to load config.js')"></script>
+    <script src="js/utils.js" onerror="console.error('Failed to load utils.js')"></script>
+    
+    <!-- Authentication system - depends on utils -->
+    <script src="js/auth.js" onerror="console.error('Failed to load auth.js')"></script>
+    
+    <!-- Database layer -->
+    <script src="js/supabase.js" onerror="console.error('Failed to load supabase.js')"></script>
+    
+    <!-- UI components -->
+    <script src="js/dashboard.js" onerror="console.error('Failed to load dashboard.js')"></script>
+    <script src="js/products.js" onerror="console.error('Failed to load products.js')"></script>
+    <script src="js/sales.js" onerror="console.error('Failed to load sales.js')"></script>
+    <script src="js/reports.js" onerror="console.error('Failed to load reports.js')"></script>
+    
+    <!-- Main application controller - load last -->
+    <script src="js/main.js" onerror="console.error('Failed to load main.js')"></script>
+    
+    <script>
+        console.log('✅ All JavaScript dependencies loaded');
+        
+        // Final resource check
+        setTimeout(() => {
+            const requiredGlobals = ['Chart', 'lucide', 'XLSX', 'supabase'];
+            const missing = requiredGlobals.filter(lib => typeof window[lib] === 'undefined');
+            
+            if (missing.length > 0) {
+                console.error('❌ Missing required libraries:', missing);
+                alert('Some required libraries failed to load. Please refresh the page.');
+            }
+        }, 1000);
+        
+        // Prevent 404 errors from breaking the app
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('404')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>
