@@ -1,0 +1,11 @@
+{
+  "quality": 100,
+  "output_format": "JPEG",
+  "resize_enabled": false,
+  "resize_width": 1820,
+  "resize_height": 1080,
+  "maintain_aspect": true,
+  "remove_exif": false,
+  "progressive": true,
+  "optimize": true
+}
